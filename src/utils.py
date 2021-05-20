@@ -1,7 +1,11 @@
 import gensim
+import nltk
 from nltk.corpus import stopwords
 
+nltk.download('stopwords')
 stop_words = set(stopwords.words('dutch'))
+
+
 
 def remove_stopwords(texts):
     '''

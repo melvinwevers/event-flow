@@ -49,12 +49,13 @@ def make_jump_entropies(input_file, window, jump_range=range(-1500, 1500, 1)):
 
     filename = os.path.basename(input_file) 
     df_kld = pd.DataFrame.from_dict(jumps, orient='columns')
+    df_kld['dates'] = dates
     df_kld.to_pickle(f"../models/jumps/{filename[:-4]}_jump.pkl")
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input_file', type=str)
+    parser.add_argument('--input-file', type=str)
     parser.add_argument('--window', type=int, default=7)
 
     args = parser.parse_args()

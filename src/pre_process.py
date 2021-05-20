@@ -10,11 +10,12 @@ import re
 
 
 def load_files(input_path, newspaper):
-    return glob.glob(os.path.join(input_path, newspaper, 'articles/*.tsv'))
+    return glob.glob(os.path.join(input_path, newspaper, '*.tsv'))
 
 
 def pre_process(newspaper, pages, input_path):
     files = load_files(input_path, newspaper)
+    print('Found {} files'.format(len(files)))
     bigFile = []
     regex_pat = re.compile(r'[^a-zA-Z\s]', flags=re.MULTILINE)
 
@@ -22,7 +23,7 @@ def pre_process(newspaper, pages, input_path):
         df = pd.read_csv(f, delimiter='\t', usecols=['date', 'page','ocr'])
         df['ocr'] = df['ocr'].astype(str)
         df = df[~df['ocr'].str.contains('objecttype')]
-        df = df[df['page'].astype(int) <= pages] 
+        df = df[df['page'].astype(int) == pages] 
 
         # filter out pages with just numbers
         df['perc_digits'] = df['ocr'].apply(lambda x: utils.digit_perc(x))
@@ -31,7 +32,7 @@ def pre_process(newspaper, pages, input_path):
         df['ocr'] = df['ocr'].apply(lambda x: unidecode.unidecode(x))
         
         df['ocr'] = df['ocr'].str.replace(regex_pat, '')
-        df['ocr'] = df['ocr'].str.findall(r'\w{2,}').str.join(' ')
+        df['ocr'] = df['ocr'].str.findall(r'\w{3,}').str.join(' ')
 
         # filter based on length
 
@@ -62,7 +63,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--newspaper', type=str)
     parser.add_argument('--pages', type=int, default=1)
-    parser.add_argument('--raw_data_path', type=str, default='../data/raw')
+    #parser.add_argument('-p', '--pages', action='store', dest='alist',
+    #                type=str, nargs='*', default=[1],
+    #                help="Examples: -i item1 item2, -i item3")
+    parser.add_argument('--raw_data_path', type=str, default='../../../news_nl')
     args = parser.parse_args()
 
     if not os.path.exists('../data/datasets'):

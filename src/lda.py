@@ -2,13 +2,17 @@
 import gensim
 import gensim.corpora as corpora
 from gensim.models import CoherenceModel
+import numpy as np
+import os
 
 
 class LDA:
-    def __init__(self, texts, k=5, mallet_path='~/mallet-2.0.8/bin/mallet'):
+    
+    def __init__(self, texts, k=5, mallet_path='/work/nl-jump-entropy/Mallet/bin/mallet'):
         self.texts = texts
         self.mallet = mallet_path
         self.k = k
+
 
     def generate_dictionary(self, filtering=True):
         return corpora.Dictionary(self.texts)
@@ -18,6 +22,7 @@ class LDA:
     
     def fit(self):
         print('making dictionary')
+        
         self.dictionary = self.generate_dictionary()
         print('making corpus')
         self.corpus = self.generate_corpus(self.dictionary)
@@ -26,16 +31,17 @@ class LDA:
                                                  corpus=self.corpus, 
                                                  id2word=self.dictionary,
                                                  num_topics=self.k,
-                                                 workers=6,
+                                                 workers=7,
                                                  optimize_interval=10,
                                                  random_seed=41
                                                 )
-        self.coherencemodel = CoherenceModel(model=self.model, 
-                                             texts=self.texts,
-                                             dictionary=self.dictionary, 
-                                             coherence="c_v")
+        #print('calculating coherence!')                                      
+        # self.coherencemodel = CoherenceModel(model=self.model, 
+        #                                      texts=self.texts,
+        #                                      dictionary=self.dictionary, 
+        #                                      coherence="c_v")
         
-        self.coherence = self.coherencemodel.get_coherence()
+        # self.coherence = self.coherencemodel.get_coherence()
         
     def coherence_k(self, krange=[10,20,30,40,50], texts=False):
         k_coherences = list()

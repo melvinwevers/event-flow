@@ -10,6 +10,7 @@ import pickle
 
 def load_corpus(newspaper, data_path):
     df = pd.read_pickle(os.path.join(data_path, '{}.pkl').format(newspaper))
+    print('Corpus Loaded!')
     corpus = df['text'].values.tolist()
     dates = df['date'].values
     return corpus, dates
@@ -45,24 +46,31 @@ def export_model(model, dates, k, newspaper):
 def lemmatize(corpus):
     lemmatized_corpus = []
     print('Lemmatizing.....')
-    for doc in tqdm(nlp.pipe(corpus, n_process=1), total = len(corpus)):
+    for doc in tqdm(nlp.pipe(corpus, batch_size=32, n_process=7), total = len(corpus)):
         lemmatized_corpus.append([token.lemma_ for token in doc if token.lemma_ is not None])
     return lemmatized_corpus
 
 def make_tm(newspaper, data_path, k):
     corpus, dates = load_corpus(newspaper, data_path)
-    lemmatized_corpus = lemmatize(corpus)
+    os.environ['MALLET_HOME'] = '/work/nl-jump-entropy/event-flow/src/mallet/'
+
+    if os.path.isfile('../data/lemmatized_data/{}_lemmatized.pcl'.format(newspaper)):
+        with open('../data/lemmatized_data/{}_lemmatized.pcl'.format(newspaper), "rb") as fobj:
+            lemmatized_corpus = pickle.load(fobj)
+    else:
+        lemmatized_corpus = lemmatize(corpus)
+        with open(os.path.join("../data/lemmatized_data/", "{}_lemmatized.pcl".format(newspaper)), "wb") as f:
+            pickle.dump(lemmatized_corpus, f, protocol=pickle.HIGHEST_PROTOCOL)
+
     lda_model = LDA(lemmatized_corpus)
     if k:
         print(f'Default K of {k}')
     else:
         print('Optimizing K')
-        k, _ = lda_model.coherence_k(krange=list(range(20, 100, 5)))
+        k, _ = lda_model.coherence_k(krange=list(range(20, 150, 10)))
         print("[INFO] optimal number of topics: {}".format(k))
     lda_model = LDA(lemmatized_corpus, k=k)
     lda_model.fit()
-
-    
 
     export_model(lda_model, dates, k, newspaper)
     
@@ -77,7 +85,9 @@ if __name__ == '__main__':
 
     if not os.path.exists('../models'):
         os.makedirs('../models')
+    if not os.path.exists ('../data/lemmatized_data'):
+        os.makedirs('../data/lemmatized_data')
 
-    nlp = spacy.load('nl_core_news_lg', disable=['ner', 'tagger'])
+    nlp = spacy.load('nl_core_news_lg', disable=['ner', 'parser', 'tagger'])
 
     make_tm(args.newspaper, args.data_path, args.k)
