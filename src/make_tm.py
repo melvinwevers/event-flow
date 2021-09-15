@@ -1,29 +1,40 @@
-
 import argparse
-import pandas as pd
-import os
+import glob
 from lda import LDA
-from tqdm import tqdm
-import spacy
+import os
+import pandas as pd
 import pickle
+import spacy
+from tqdm import tqdm
+
 
 
 def load_corpus(newspaper, data_path):
+    '''
+    function to load cleaned newspaper pickle
+
+    '''
     df = pd.read_pickle(os.path.join(data_path, '{}.pkl').format(newspaper))
-    print('Corpus Loaded!')
     corpus = df['text'].values.tolist()
     dates = df['date'].values
+    print('Corpus Loaded!')
+    
     return corpus, dates
 
+
 def calculate_theta(model):
+    '''
+    function to calculate theta (doc/topic prob matrix)
+    '''
     print('calculating theta')
     theta_df = pd.read_csv(model.model.fdoctopics(), delimiter='\t', header=None)
     theta_df.drop(theta_df.iloc[:, :2], inplace=True, axis=1)
     return theta_df.values
 
-def export_model(model, dates, k, newspaper):
+
+def export_model(model, model_path, dates, k, newspaper):
     print("\n[INFO] writing content to file...\n")
-    with open(os.path.join("../models/", "{}_{}_content.txt".format(newspaper, k)), "w") as f:
+    with open(os.path.join(model_path, f"{newspaper}_{k}_content.txt"), "w") as f:
         for topic in model.model.show_topics(num_topics=-1, num_words=10):
             f.write("{}\n\n".format(topic))
 
@@ -38,31 +49,46 @@ def export_model(model, dates, k, newspaper):
     out["theta"] = theta
     out["dates"] = dates
 
-    with open(os.path.join("../models/", "{}_{}_model.pcl".format(newspaper, k)), "wb") as f:
+    with open(os.path.join(model_path, f"{newspaper}_{k}_model.pcl"), "wb") as f:
         pickle.dump(out, f, protocol=pickle.HIGHEST_PROTOCOL)
 
     
-    
 def lemmatize(corpus):
+    '''
+    Lemmatizer using SpacyNLP
+    Be sure to adapt n_processes based on your specs!
+    '''
+
     lemmatized_corpus = []
     print('Lemmatizing.....')
-    for doc in tqdm(nlp.pipe(corpus, batch_size=32, n_process=7), total = len(corpus)):
+    for doc in tqdm(nlp.pipe(corpus, batch_size=32, n_process=25), total = len(corpus)):
         lemmatized_corpus.append([token.lemma_ for token in doc if token.lemma_ is not None])
     return lemmatized_corpus
 
-def make_tm(newspaper, data_path, k):
+
+def make_tm(newspaper, data_path, model_path, k):
+    '''
+    Create topic model using mallet. 
+    You need to specify the location of your MaLLET installation in `os.environ`
+
+    '''
     corpus, dates = load_corpus(newspaper, data_path)
     os.environ['MALLET_HOME'] = '/work/nl-jump-entropy/event-flow/src/mallet/'
+    # check if lemmatized corpus exists, time saver!
 
-    if os.path.isfile('../data/lemmatized_data/{}_lemmatized.pcl'.format(newspaper)):
-        with open('../data/lemmatized_data/{}_lemmatized.pcl'.format(newspaper), "rb") as fobj:
+    lemmatized_data_path = os.path.join(args.data_path, '../data/lemmatized_data')
+
+    if os.path.isfile(os.path.join(lemmatized_data_path, f'{newspaper}_lemmatized.pcl')):
+        with open(os.path.join(lemmatized_data_path, f'{newspaper}_lemmatized.pcl'), "rb") as fobj:
             lemmatized_corpus = pickle.load(fobj)
     else:
         lemmatized_corpus = lemmatize(corpus)
-        with open(os.path.join("../data/lemmatized_data/", "{}_lemmatized.pcl".format(newspaper)), "wb") as f:
+        with open(os.path.join(lemmatized_data_path, f"{newspaper}_lemmatized.pcl"), "wb") as f:
             pickle.dump(lemmatized_corpus, f, protocol=pickle.HIGHEST_PROTOCOL)
 
+    ## Make the topic model using LDA
     lda_model = LDA(lemmatized_corpus)
+    ## If K is not given, we will optimize for K (can be slow)
     if k:
         print(f'Default K of {k}')
     else:
@@ -72,7 +98,7 @@ def make_tm(newspaper, data_path, k):
     lda_model = LDA(lemmatized_corpus, k=k)
     lda_model.fit()
 
-    export_model(lda_model, dates, k, newspaper)
+    export_model(lda_model, model_path, dates, k, newspaper)
     
 
 
@@ -80,14 +106,16 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--newspaper', type=str)
     parser.add_argument('--data_path', type=str, default='../data/datasets')
+    parser.add_argument('--model_path', type=str, default='../models')
     parser.add_argument('--k', type=int) #if empty will optimize K
     args = parser.parse_args()
 
-    if not os.path.exists('../models'):
-        os.makedirs('../models')
-    if not os.path.exists ('../data/lemmatized_data'):
-        os.makedirs('../data/lemmatized_data')
+    lemmatized_data_path = os.path.join(args.data_path, '../data/lemmatized_data')
+    if not os.path.exists(args.model_path):
+        os.makedirs(args.model_path)
+    if not os.path.exists(lemmatized_data_path):
+        os.makedirs(lemmatized_data_path)
 
     nlp = spacy.load('nl_core_news_lg', disable=['ner', 'parser', 'tagger'])
 
-    make_tm(args.newspaper, args.data_path, args.k)
+    make_tm(args.newspaper, args.data_path, args.model_path, args.k)

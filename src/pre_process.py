@@ -14,6 +14,23 @@ def load_files(input_path, newspaper):
 
 
 def pre_process(newspaper, pages, input_path):
+    '''Pre-processing newspaper data into input files for Topic Modeling
+
+    Parameters
+    ----------
+    newspaper : str
+        string to select specific newspaper
+    pages : int
+        Which page to extract # TODO: implement ranges
+    input_path : str
+        folder where newspapers are stored
+
+    Returns
+    -------
+    pickled version of cleaned newspaper data
+    '''
+
+
     files = load_files(input_path, newspaper)
     print('Found {} files'.format(len(files)))
     bigFile = []
@@ -25,28 +42,23 @@ def pre_process(newspaper, pages, input_path):
         df = df[~df['ocr'].str.contains('objecttype')]
         df = df[df['page'].astype(int) == pages] 
 
-        # filter out pages with just numbers
+        # filter out pages with more than 50% numbers (e.g. shipping reports)
         df['perc_digits'] = df['ocr'].apply(lambda x: utils.digit_perc(x))
         df = df[df['perc_digits'] <= 0.5]
 
         df['ocr'] = df['ocr'].apply(lambda x: unidecode.unidecode(x))
-        
         df['ocr'] = df['ocr'].str.replace(regex_pat, '')
         df['ocr'] = df['ocr'].str.findall(r'\w{3,}').str.join(' ')
 
         # filter based on length
-
         #df['len'] = df['ocr'].astype(str).str.split().apply(len)
         #df = df[df['len'].between(250, 1000, inclusive=True)]
-
-        # remove stop words
-        df['ocr'] = df['ocr'].apply(lambda x: utils.remove_stopwords(x))
-
-        df['ocr'] = df['ocr'].str.lower()
         
-
+        df['ocr'] = df['ocr'].apply(lambda x: utils.remove_stopwords(x)) # remove stop words
+        df['ocr'] = df['ocr'].str.lower() # lower words
+        
+        # concatenate articles on front pages
         df['date'] = pd.to_datetime(df.date, format='%Y-%m-%d')
-        # concatenate pages
         df['text'] = df[['date', 'ocr']].groupby('date')['ocr'].transform(lambda x: ' '.join(x))
         df = df[['date', 'text']].drop_duplicates()
         bigFile.append(df)
@@ -63,9 +75,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--newspaper', type=str)
     parser.add_argument('--pages', type=int, default=1)
-    #parser.add_argument('-p', '--pages', action='store', dest='alist',
-    #                type=str, nargs='*', default=[1],
-    #                help="Examples: -i item1 item2, -i item3")
     parser.add_argument('--raw_data_path', type=str, default='../../../news_nl')
     args = parser.parse_args()
 

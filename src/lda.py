@@ -31,17 +31,17 @@ class LDA:
                                                  corpus=self.corpus, 
                                                  id2word=self.dictionary,
                                                  num_topics=self.k,
-                                                 workers=7,
+                                                 workers=25,
                                                  optimize_interval=10,
                                                  random_seed=41
                                                 )
-        #print('calculating coherence!')                                      
-        # self.coherencemodel = CoherenceModel(model=self.model, 
-        #                                      texts=self.texts,
-        #                                      dictionary=self.dictionary, 
-        #                                      coherence="c_v")
+        print('calculating coherence!')                                      
+        self.coherencemodel = CoherenceModel(model=self.model, 
+                                             texts=self.texts,
+                                             dictionary=self.dictionary, 
+                                             coherence="c_v")
         
-        # self.coherence = self.coherencemodel.get_coherence()
+        self.coherence = self.coherencemodel.get_coherence()
         
     def coherence_k(self, krange=[10,20,30,40,50], texts=False):
         k_coherences = list()

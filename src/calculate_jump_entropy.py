@@ -40,7 +40,7 @@ def make_jump_entropies(input_file, window, jump_range=range(-1500, 1500, 1)):
     theta, dates = load_model(input_file)
 
     jumps = dict()
-    jumps2 = Parallel(n_jobs=7)(delayed(calc_jump)(theta, window, jump, jumps) for jump in tqdm(jump_range))
+    jumps2 = Parallel(n_jobs=40)(delayed(calc_jump)(theta, window, jump, jumps) for jump in tqdm(jump_range))
     jumps = dict()
     # take dictionary out of list output from parallel
     for _ in jumps2:

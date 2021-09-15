@@ -6,7 +6,6 @@ nltk.download('stopwords')
 stop_words = set(stopwords.words('dutch'))
 
 
-
 def remove_stopwords(texts):
     '''
     remove accents and increase max length of words
@@ -17,6 +16,9 @@ def remove_stopwords(texts):
 
 
 def digit_perc(x):
+    '''
+    calculate percentage of digits
+    '''
     return sum(c.isdigit() for c in str(x)) / len(str(x))
 
 def token_filter(token):
